@@ -12,7 +12,7 @@ def lookup_crd(crd_number, shelve_filename="crd_to_state_db"):
             crd_str = str(crd_number)
             
             if crd_str in db:
-                return str(db[crd_str])
+                return db[crd_str]
             else:
                 return None
     except Exception as e:
@@ -22,7 +22,7 @@ def lookup_crd(crd_number, shelve_filename="crd_to_state_db"):
 if __name__ == '__main__':
     while True:
         crd = input("Enter a CRD number to look up (or 'exit' to quit): ")
-        if crd == 'exit':
+        if crd == 'exit' or crd == 'q':
             break
         states = lookup_crd(crd)
         if states:
