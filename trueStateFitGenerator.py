@@ -27,6 +27,12 @@ def cleanName(firstname: str, lastname: str) -> str:
     return None
 
 def addTrueState(fitPath: str, oldFitPath: str, fitSheet: str = "FIT", oldFitSheet: str = "FIT (LOC)"):
+    
+    #In progress: pull all old advisors into a hash map of clean name (with helper function) to true state and use that for later logic
+    old = pd.read_excel(oldFitPath, sheet_name=oldFitSheet)
+    oldDF = pd.DataFrame(old)
+    existing_advisors = dict(map(lambda row:))
+    
     advisors = {}
     wb = openpyxl.load_workbook(fitPath)
     ws = wb[fitSheet]
@@ -58,7 +64,8 @@ def addTrueState(fitPath: str, oldFitPath: str, fitSheet: str = "FIT", oldFitShe
         cell_firstname = row[8]  # Column R (18) - Name Part 1
         
         cell_homestate.value = str(advisors[cell_fullname.value])
-    
+
+        #todo: implement all that logic to decide which to keep; clean up all these calls in for loops
     wb.save(get_unique_filename(fitPath))
     
 addTrueState(r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\5-26.xlsx", r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\4-26-FIT-TrueState.xlsx")
