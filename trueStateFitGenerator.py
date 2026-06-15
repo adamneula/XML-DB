@@ -83,46 +83,49 @@ def addTrueState(fitPath: str, oldFitPath: str, fitSheet: str = "FIT", oldFitShe
         
         regs = advisors.get(cell_fullname.value, {})
         all_states = [state for states_list in regs.values() for state in states_list]
-
         old_state = existingStates.get(cell_fullname.value)
 
-        # Rule 1: Old state exists -> use it
-        if old_state and old_state != "Not Found":
+        # --- PREPARATION: Format Dates for Priority 1 ---
+        # 1. Format the Excel cell date
+        if hasattr(cell_date.value, 'strftime'):
+            fit_list_date = f"{cell_date.value.month}/{cell_date.value.day}/{cell_date.value.year}"
+        else:
+            fit_list_date = str(cell_date.value).strip() if cell_date.value else ""
+
+        # 2. Convert the database dictionary keys to match
+        converted_regs = {}
+        for db_date, states in regs.items():
+            try:
+                y, m, d = db_date.split('-')
+                converted_regs[f"{int(m)}/{int(d)}/{int(y)}"] = states
+            except ValueError:
+                converted_regs[db_date] = states
+
+
+        # --- THE NEW HIERARCHY ---
+
+        # PRIORITY 1: Exact Date Match
+        if fit_list_date in converted_regs:
+            cell_homestate.value = converted_regs[fit_list_date][0]
+
+        # PRIORITY 2: Old state exists in historical Fit List
+        elif old_state and old_state != "Not Found":
             cell_homestate.value = old_state
             
-        # Rule 2: Advisor has absolutely no registration data
+        # PRIORITY 3: Advisor has absolutely no registration data
         elif not regs:
             cell_homestate.value = "Not Found"
             
-        # Rule 3: No old state, but we have registration data to check
+        # PRIORITY 4: Only one state across all registrations
+        elif len(all_states) == 1: 
+            cell_homestate.value = all_states[0]
+            
+        # PRIORITY 5: Multiple states, no date match -> Most Recent
         else:
-            if len(all_states) == 1: 
-                cell_homestate.value = all_states[0]
-                
-            elif len(all_states) > 1: 
-                # Format the Excel cell date
-                if hasattr(cell_date.value, 'strftime'):
-                    fit_list_date = f"{cell_date.value.month}/{cell_date.value.day}/{cell_date.value.year}"
-                else:
-                    fit_list_date = str(cell_date.value).strip() if cell_date.value else ""
-
-                # FIX: Inlined Date Conversion Logic (Replaces clean_date function)
-                converted_regs = {}
-                for db_date, states in regs.items():
-                    try:
-                        y, m, d = db_date.split('-')
-                        converted_regs[f"{int(m)}/{int(d)}/{int(y)}"] = states
-                    except ValueError:
-                        converted_regs[db_date] = states
-
-                # Check for a match
-                if fit_list_date in converted_regs:
-                    cell_homestate.value = converted_regs[fit_list_date][0]
-                else:
-                    sorted_db_dates = sorted(regs.keys())
-                    if sorted_db_dates:
-                        most_recent_db_date = sorted_db_dates[-1]
-                        cell_homestate.value = regs[most_recent_db_date][0]
+            sorted_db_dates = sorted(regs.keys())
+            if sorted_db_dates:
+                most_recent_db_date = sorted_db_dates[-1]
+                cell_homestate.value = regs[most_recent_db_date][0]
 
     # FIX: Safe file path splitting
     base_path, ext = os.path.splitext(fitPath)
