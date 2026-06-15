@@ -3,6 +3,7 @@ import openpyxl
 import os
 from tqdm import tqdm
 from CRD_DB_Lookup import lookup_crd
+import datetime
 
 def get_unique_filename(file_path):
     """Checks if a file exists and appends a numeric suffix if it does."""
@@ -26,13 +27,18 @@ def cleanName(firstname: str, lastname: str) -> str:
         return f"{firstname.split()[0].capitalize()} {lastname.split()[0].capitalize()}"
     return None
 
-def addTrueState(fitPath: str, oldFitPath: str, fitSheet: str = "FIT", oldFitSheet: str = "FIT (LOC)"):
-    
-    #In progress: pull all old advisors into a hash map of clean name (with helper function) to true state and use that for later logic
-    old = pd.read_excel(oldFitPath, sheet_name=oldFitSheet)
+def addTrueState(fitPath: str, oldFitPath: str, fitSheet: str = "FIT", oldFitSheet: str = "FIT"):
+    '''
+    Makes two passes through fit list - one building a mapping of names to registrations (correcting for inconsistent CRD info), and one applying the correct state based on the mapping and rules.
+    '''
+    old = pd.read_excel(oldFitPath, sheet_name=oldFitSheet, header=1)
     oldDF = pd.DataFrame(old)
-    existing_advisors = dict(map(lambda row:))
-    
+    existingStates = {
+        cleanName(first, last): state
+        for first, last, state in zip(oldDF['First'], oldDF['Last'], oldDF['Home State'])
+        if cleanName(first, last) is not None
+    }
+
     advisors = {}
     wb = openpyxl.load_workbook(fitPath)
     ws = wb[fitSheet]
@@ -43,29 +49,84 @@ def addTrueState(fitPath: str, oldFitPath: str, fitSheet: str = "FIT", oldFitShe
     ws.cell(row=2, column=target_index).value = "Home State"
     ws.cell(row=2, column=target_index + 1).value = "Full Name"
     
-    for row in tqdm(ws.iter_rows(min_row=3, min_col=10, max_col=18), desc="Processing names"): #0 indexes starting with j
-        cell_fullname = row[1]  # Column K (11) - Full Name
-        cell_CRD = row[2]  # Column L (12) - Source for CRD lookup
-        cell_lastname = row[7]  # Column Q (17) - Name Part 2
-        cell_firstname = row[8]  # Column R (18) - Name Part 1
-
+    # LOOP 1: Build the dictionary
+    for row in tqdm(ws.iter_rows(min_row=3, min_col=10, max_col=18), desc="Processing names"): 
+        cell_fullname = row[1]  
+        cell_CRD = row[2]  
+        cell_lastname = row[7]  
+        cell_firstname = row[8]  
         cell_fullname.value = cleanName(cell_firstname.value, cell_lastname.value)
-        if cell_fullname.value in advisors and advisors[cell_fullname.value] is not None:
-            if lookup_crd(int(cell_CRD.value)) is not None:
-                advisors[cell_fullname.value].update(lookup_crd(int(cell_CRD.value)))
-        else:
-            advisors[cell_fullname.value] = lookup_crd(int(cell_CRD.value))
-    
-    for row in tqdm(ws.iter_rows(min_row=3, min_col=10, max_col=18), desc="Processing rows"): #0 indexes starting with j
-        cell_homestate = row[0]  # Column J (10) - Home State
-        cell_fullname = row[1]  # Column K (11) - Full Name
-        cell_CRD = row[2]  # Column L (12) - Source for CRD lookup
-        cell_lastname = row[7]  # Column Q (17) - Name Part 2
-        cell_firstname = row[8]  # Column R (18) - Name Part 1
-        
-        cell_homestate.value = str(advisors[cell_fullname.value])
 
-        #todo: implement all that logic to decide which to keep; clean up all these calls in for loops
-    wb.save(get_unique_filename(fitPath))
+        # Handle missing CRDs safely
+        if not cell_CRD.value:
+            continue
+            
+        try:
+            crd_info = lookup_crd(int(cell_CRD.value))
+        except ValueError:
+            continue
+
+        if crd_info is None or cell_fullname.value != cleanName(crd_info.get("first_name"), crd_info.get("last_name")):
+            continue
+            
+        # FIX: Store just the registrations dict
+        advisors[cell_fullname.value] = crd_info.get('registrations', {})
     
-addTrueState(r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\5-26.xlsx", r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\4-26-FIT-TrueState.xlsx")
+    # LOOP 2: Apply logic
+    for row in tqdm(ws.iter_rows(min_row=3, min_col=10, max_col=18), desc="Processing rows"): 
+        cell_homestate = row[0]  
+        cell_fullname = row[1]  
+        cell_CRD = row[2]  
+        cell_lastname = row[7]  
+        cell_firstname = row[8]  
+        cell_date = row[3]  
+        
+        regs = advisors.get(cell_fullname.value, {})
+        all_states = [state for states_list in regs.values() for state in states_list]
+
+        old_state = existingStates.get(cell_fullname.value)
+
+        # Rule 1: Old state exists -> use it
+        if old_state and old_state != "Not Found":
+            cell_homestate.value = old_state
+            
+        # Rule 2: Advisor has absolutely no registration data
+        elif not regs:
+            cell_homestate.value = "Not Found"
+            
+        # Rule 3: No old state, but we have registration data to check
+        else:
+            if len(all_states) == 1: 
+                cell_homestate.value = all_states[0]
+                
+            elif len(all_states) > 1: 
+                # Format the Excel cell date
+                if hasattr(cell_date.value, 'strftime'):
+                    fit_list_date = f"{cell_date.value.month}/{cell_date.value.day}/{cell_date.value.year}"
+                else:
+                    fit_list_date = str(cell_date.value).strip() if cell_date.value else ""
+
+                # FIX: Inlined Date Conversion Logic (Replaces clean_date function)
+                converted_regs = {}
+                for db_date, states in regs.items():
+                    try:
+                        y, m, d = db_date.split('-')
+                        converted_regs[f"{int(m)}/{int(d)}/{int(y)}"] = states
+                    except ValueError:
+                        converted_regs[db_date] = states
+
+                # Check for a match
+                if fit_list_date in converted_regs:
+                    cell_homestate.value = converted_regs[fit_list_date][0]
+                else:
+                    sorted_db_dates = sorted(regs.keys())
+                    if sorted_db_dates:
+                        most_recent_db_date = sorted_db_dates[-1]
+                        cell_homestate.value = regs[most_recent_db_date][0]
+
+    # FIX: Safe file path splitting
+    base_path, ext = os.path.splitext(fitPath)
+    wb.save(get_unique_filename(f"{base_path}-TrueState{ext}"))
+    
+if __name__ == '__main__':
+    addTrueState(r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\5-26.xlsx", r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\4-26-FIT-TrueState.xlsx")
