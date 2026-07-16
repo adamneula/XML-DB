@@ -92,7 +92,7 @@ def build_shelve_database(xml_folder, shelve_filename):
     print(f"\nFinished parsing. Database saved to {shelve_filename}")
 
 if __name__ == '__main__':
-    XML_DIRECTORY = r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\IA_INDVL_Feed_06_08_2026"
+    XML_DIRECTORY = r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\IA_INDVL_Feed_06_29_2026"
     SHELVE_DB_NAME = "crd_to_state_db"
     print("WARNING: THIS WILL OVERWRITE THE CURRENT SHELVE DATABASE. PROCEED WITH CAUTION.")
     

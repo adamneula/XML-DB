@@ -101,11 +101,10 @@ def addTrueState(fitPath: str, oldFitPath: str, fitSheet: str = "FIT", oldFitShe
             except ValueError:
                 converted_regs[db_date] = states
 
-
-        # --- THE NEW HIERARCHY ---
-
         # PRIORITY 1: Exact Date Match
         if fit_list_date in converted_regs:
+            # if cell_homestate.value != converted_regs[fit_list_date][0] and (cell_homestate.value != "Not Found" or cell_homestate.value is not None):
+            #     print(f"Updating {cell_fullname.value}'s state from {cell_homestate.value} to {converted_regs[fit_list_date][0]} based on exact date match.")
             cell_homestate.value = converted_regs[fit_list_date][0]
 
         # PRIORITY 2: Old state exists in historical Fit List
@@ -118,10 +117,12 @@ def addTrueState(fitPath: str, oldFitPath: str, fitSheet: str = "FIT", oldFitShe
             
         # PRIORITY 4: Only one state across all registrations
         elif len(all_states) == 1: 
+            print(f"{cell_fullname.value} has only one registered state: {all_states[0]}. Assigning that as home state.")
             cell_homestate.value = all_states[0]
             
         # PRIORITY 5: Multiple states, no date match -> Most Recent
         else:
+            print(f"WARNING: {cell_fullname.value} has multiple states with no date match. Defaulting to most recent registration.")
             sorted_db_dates = sorted(regs.keys())
             if sorted_db_dates:
                 most_recent_db_date = sorted_db_dates[-1]
@@ -132,4 +133,4 @@ def addTrueState(fitPath: str, oldFitPath: str, fitSheet: str = "FIT", oldFitShe
     wb.save(get_unique_filename(f"{base_path}-TrueState{ext}"))
     
 if __name__ == '__main__':
-    addTrueState(r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\5-26.xlsx", r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\4-26-FIT-TrueState.xlsx")
+    addTrueState(r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\6-26.xlsx", r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\5-26-TrueState.xlsx")
