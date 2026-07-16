@@ -101,15 +101,13 @@ def addTrueState(fitPath: str, oldFitPath: str, fitSheet: str = "FIT", oldFitShe
             except ValueError:
                 converted_regs[db_date] = states
 
-        # PRIORITY 1: Exact Date Match
-        if fit_list_date in converted_regs:
-            # if cell_homestate.value != converted_regs[fit_list_date][0] and (cell_homestate.value != "Not Found" or cell_homestate.value is not None):
-            #     print(f"Updating {cell_fullname.value}'s state from {cell_homestate.value} to {converted_regs[fit_list_date][0]} based on exact date match.")
-            cell_homestate.value = converted_regs[fit_list_date][0]
-
-        # PRIORITY 2: Old state exists in historical Fit List
-        elif old_state and old_state != "Not Found":
+        # PRIORITY 1: Old state exists
+        if old_state and old_state != "Not Found":
             cell_homestate.value = old_state
+
+        # PRIORITY 2: Exact date match
+        elif fit_list_date in converted_regs:
+            cell_homestate.value = converted_regs[fit_list_date][0]
             
         # PRIORITY 3: Advisor has absolutely no registration data
         elif not regs:
