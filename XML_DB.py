@@ -11,6 +11,21 @@ def execute_with_countdown(seconds=5):
         time.sleep(1)
     print("\nCountdown complete. Executing function...")
 
+STATE_ABBREV_TO_NAME = {
+    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+    'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
+    'MO': 'Missouri', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire',
+    'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina',
+    'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania',
+    'RI': 'Rhode Island', 'SC': 'South Carolina', 'SD': 'South Dakota', 'TN': 'Tennessee',
+    'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington',
+    'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming', 'DC': 'District of Columbia',
+    'PR': 'Puerto Rico', 'VI': 'Virgin Islands'
+}
+
 def extract_crd_states(file_path):
     """
     Parses a single XML file and returns a mapping of CRDs to their Names and Registrations.
@@ -53,10 +68,46 @@ def extract_crd_states(file_path):
                                     date_state_map[date].add(state)
                 
                 if crd and date_state_map:
+                    # Extract address (prefer BrnchOfLoc, fallback to CrntEmp)
+                    address = {}
+                    if crnt_emps is not None:
+                        first_emp = crnt_emps.find("CrntEmp")
+                        if first_emp is not None:
+                            brnch_locs = first_emp.find("BrnchOfLocs")
+                            if brnch_locs is not None and brnch_locs.find("BrnchOfLoc") is not None:
+                                loc = brnch_locs.find("BrnchOfLoc")
+                                address = {
+                                    'str1': loc.get("str1", ""),
+                                    'str2': loc.get("str2", ""),
+                                    'city': loc.get("city", ""),
+                                    'state': loc.get("state", ""),
+                                    'postlCd': loc.get("postlCd", "")
+                                }
+                            else:
+                                address = {
+                                    'str1': first_emp.get("str1", ""),
+                                    'str2': first_emp.get("str2", ""),
+                                    'city': first_emp.get("city", ""),
+                                    'state': first_emp.get("state", ""),
+                                    'postlCd': first_emp.get("postlCd", "")
+                                }
+                    
+                    # Format address string
+                    addr_parts = []
+                    if address.get('str1'): addr_parts.append(address['str1'])
+                    if address.get('str2'): addr_parts.append(address['str2'])
+                    city_state_zip = f"{address.get('city', '')}, {address.get('state', '')} {address.get('postlCd', '')}".strip(" ,")
+                    if city_state_zip: addr_parts.append(city_state_zip)
+                    formatted_address = ", ".join(addr_parts)
+                    
+                    full_state_name = STATE_ABBREV_TO_NAME.get(address.get('state', '').upper(), address.get('state', ''))
+
                     local_mapping[crd] = {
                         'first_name': first_name,
                         'last_name': last_name,
-                        'registrations': {d: list(s) for d, s in date_state_map.items()}
+                        'registrations': {d: list(s) for d, s in date_state_map.items()},
+                        'address': formatted_address,
+                        'full_state': full_state_name
                     }
             
             elem.clear()
@@ -92,7 +143,7 @@ def build_shelve_database(xml_folder, shelve_filename):
     print(f"\nFinished parsing. Database saved to {shelve_filename}")
 
 if __name__ == '__main__':
-    XML_DIRECTORY = r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\IA_INDVL_Feed_06_29_2026"
+    XML_DIRECTORY = r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\IA_INDVL_Feed_08_03_2026"
     SHELVE_DB_NAME = "crd_to_state_db"
     print("WARNING: THIS WILL OVERWRITE THE CURRENT SHELVE DATABASE. PROCEED WITH CAUTION.")
     

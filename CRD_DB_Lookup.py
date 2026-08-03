@@ -19,13 +19,66 @@ def lookup_crd(crd_number, shelve_filename="crd_to_state_db"):
         print(f"Error accessing database: {e}")
         return None
 
+def get_address(crd_number, shelve_filename="crd_to_state_db"):
+    """
+    Looks up a CRD number and returns the formatted full address string.
+    """
+    try:
+        with shelve.open(shelve_filename, flag='r') as db:
+            data = db.get(str(crd_number))
+            if data and isinstance(data, dict):
+                return data.get('address', "Address not found")
+            return "Address not found"
+    except Exception:
+        return "Database error"
+
+def get_full_state(crd_number, shelve_filename="crd_to_state_db"):
+    """
+    Looks up a CRD number and returns the full state name.
+    """
+    try:
+        with shelve.open(shelve_filename, flag='r') as db:
+            data = db.get(str(crd_number))
+            if data and isinstance(data, dict):
+                return data.get('full_state', "State not found")
+            return "State not found"
+    except Exception:
+        return "Database error"
+
+def get_name_and_address(crd_number, shelve_filename="crd_to_state_db"):
+    """
+    Looks up a CRD number and returns a tuple of (Full Name, Full Address).
+    """
+    try:
+        with shelve.open(shelve_filename, flag='r') as db:
+            data = db.get(str(crd_number))
+            if data and isinstance(data, dict):
+                first = data.get('first_name', '').strip().capitalize()
+                last = data.get('last_name', '').strip().capitalize()
+                name = f"{first} {last}".strip()
+                address = data.get('address', "Address not found")
+                return name, address
+            return None, None
+    except Exception:
+        return None, None
+
 if __name__ == '__main__':
+    print("=== Interactive CRD Lookup Tool ===")
     while True:
-        crd = input("Enter a CRD number to look up (or 'exit' to quit): ")
-        if crd == 'exit' or crd == 'q':
+        crd = input("\nEnter a CRD number to look up (or 'exit' to quit): ").strip()
+        if crd.lower() in ('exit', 'q', 'quit'):
             break
+        if not crd:
+            continue
+            
         states = lookup_crd(crd)
         if states:
-            print(f"CRD {crd} found! Registered in: {states}")
+            name, address = get_name_and_address(crd)
+            full_state = get_full_state(crd)
+            
+            print(f"\n[FOUND] CRD {crd} Database Entry:")
+            print(f"  Name:       {name}")
+            print(f"  Address:    {address}")
+            print(f"  Full State: {full_state}")
         else:
-            print(f"CRD {crd} not found in the database.")
+            print(f"\n[NOT FOUND] CRD {crd} not found in the database.")
