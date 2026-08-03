@@ -131,4 +131,4 @@ def addTrueState(fitPath: str, oldFitPath: str, fitSheet: str = "FIT", oldFitShe
     wb.save(get_unique_filename(f"{base_path}-TrueState{ext}"))
     
 if __name__ == '__main__':
-    addTrueState(r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\6-26.xlsx", r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\5-26-TrueState.xlsx")
+    addTrueState(r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\7-26.xlsx", r"H:\_INSTITUTIONAL DIVISION\INTERN FOLDER\Adam Neulander\IAPD_Database\7-26-TrueState.xlsx")
